@@ -24,12 +24,15 @@ async def _register(client: AsyncClient) -> dict:
     )
     assert r.status_code == 201, r.text
     data = r.json()["data"]
-    data["token"] = r.json()["data"].get("access_token") or (
-        await client.post(
-            "/api/v1/auth/login",
-            json={"username": data["username"], "password": "abcd1234"},
-        )
-    ).json()["data"]["access_token"]
+    data["token"] = (
+        r.json()["data"].get("access_token")
+        or (
+            await client.post(
+                "/api/v1/auth/login",
+                json={"username": data["username"], "password": "abcd1234"},
+            )
+        ).json()["data"]["access_token"]
+    )
     return data
 
 
@@ -108,9 +111,7 @@ async def test_send_and_list_messages(client: AsyncClient, alice: dict, bob: dic
     assert [m["id"] for m in body["list"]] == [msg["id"]]
 
 
-async def test_sensitive_word_is_replaced_not_rejected(
-    client: AsyncClient, alice: dict, bob: dict
-):
+async def test_sensitive_word_is_replaced_not_rejected(client: AsyncClient, alice: dict, bob: dict):
     room_id = (
         await client.post(
             "/api/v1/rooms/single", json={"target_uid": bob["id"]}, headers=_auth(alice)
@@ -186,9 +187,7 @@ async def test_cursor_pagination_walks_backwards(client: AsyncClient, alice: dic
     assert seen == [f"msg-{i}" for i in (4, 3, 2, 1, 0)]
 
 
-async def test_room_list_shows_last_message_and_unread(
-    client: AsyncClient, alice: dict, bob: dict
-):
+async def test_room_list_shows_last_message_and_unread(client: AsyncClient, alice: dict, bob: dict):
     room_id = (
         await client.post(
             "/api/v1/rooms/single", json={"target_uid": bob["id"]}, headers=_auth(alice)
