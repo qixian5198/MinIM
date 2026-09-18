@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 敏感配置（只提交 .env.example）
+.env
+.env.*
+!.env.example
+
+# 测试 / 覆盖率
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# 前端（M4 后）
+web/node_modules/
+web/.next/
+web/dist/
+
+# 运行时产物（exFAT 不落盘，双保险）
+logs/
+data/
+*.db
+*.sqlite3
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+._*
+.DS_Store
+
+# 本地工具
+.docker/
