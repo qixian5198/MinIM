@@ -24,6 +24,9 @@ plugins = ["pydantic.mypy"]
 
 [tool.coverage.run]
 source = ["app"]
+# SQLAlchemy async 用 greenlet 切栈，不声明 greenlet 的话
+# 服务层（await 之后的代码）会被判成未覆盖，实测差 30+ 个百分点
+concurrency = ["greenlet", "thread"]
 omit = ["*/migrations/*", "*/tests/*"]
 
 [tool.coverage.report]
