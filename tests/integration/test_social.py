@@ -7,13 +7,16 @@ WS 推送同样起真 server + websockets 客户端连进去，验证事件实�
 import asyncio
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 import uvicorn
 import websockets
 from httpx import AsyncClient
 
+from app.db import session_factory
 from app.main import app
+from app.repositories.message_repo import MessageRepo
 
 WS_PORT = 8767
 
@@ -85,6 +88,14 @@ async def _create_group(base: str, owner: dict, member_ids: list[int], limit: in
 
 def _ws_url(token: str, last_seq: int = 0) -> str:
     return f"ws://127.0.0.1:{WS_PORT}/ws?token={token}&last_seq={last_seq}"
+
+
+async def _drain_sync(ws) -> None:
+    """连上后先排空断线补偿事件，直到收到 sync.done（表示重放结束）"""
+    while True:
+        ev = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+        if ev["type"] == "sync.done":
+            return
 
 
 # ---------------- 好友 ----------------
@@ -335,3 +346,138 @@ async def test_friend_request_pushes_new_and_accepted(server: str):
             acc_ev = json.loads(await asyncio.wait_for(ws_a.recv(), timeout=5))
             assert acc_ev["type"] == "friend.request.accepted"
             assert acc_ev["data"]["room_id"]
+
+
+# ---------------- M5 消息可靠性 ----------------
+async def _single_room(base: str, a: dict, b: dict) -> str:
+    async with AsyncClient(base_url=base) as c:
+        r = await c.post(
+            "/api/v1/rooms/single",
+            json={"target_uid": b["id"]},
+            headers={"Authorization": f"Bearer {a['token']}"},
+        )
+        assert r.status_code == 201, r.text
+        return r.json()["data"]["id"]
+
+
+async def _send(base: str, user: dict, room_id: str, content: str) -> dict:
+    async with AsyncClient(base_url=base) as c:
+        r = await c.post(
+            "/api/v1/messages",
+            json={"room_id": room_id, "type": 1, "content": content},
+            headers={"Authorization": f"Bearer {user['token']}"},
+        )
+        assert r.status_code == 201, r.text
+        return r.json()["data"]
+
+
+async def test_recall_message_success_and_push(server: str):
+    alice = await _register(server)
+    bob = await _register(server)
+    room = await _single_room(server, alice, bob)
+    msg = await _send(server, alice, room, "撤回我吧")
+
+    # bob 在线，监听撤回推送（先排空历史重放，再触发撤回）
+    async with websockets.connect(_ws_url(bob["token"])) as ws:
+        await _drain_sync(ws)
+        r = await (
+            AsyncClient(base_url=server)
+        ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {alice['token']}"})
+        assert r.status_code == 200
+
+        ev = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+        assert ev["type"] == "message.recalled"
+        assert ev["data"]["msg_id"] == msg["id"]
+        assert ev["data"]["room_id"] == room
+
+    # 撤回后历史里 type 变 2
+    async with AsyncClient(base_url=server) as c:
+        hist = await c.get(
+            f"/api/v1/rooms/{room}/messages", headers={"Authorization": f"Bearer {bob['token']}"}
+        )
+        items = hist.json()["data"]["list"]
+        recalled = [m for m in items if m["id"] == msg["id"]][0]
+        assert recalled["type"] == 2
+        # recalled_by 在 extra 里是整数 id，alice["id"] 是字符串，转一下比
+        assert recalled["extra"]["recalled_by"] == int(alice["id"])
+
+
+async def test_recall_not_sender_forbidden(server: str):
+    alice = await _register(server)
+    bob = await _register(server)
+    room = await _single_room(server, alice, bob)
+    msg = await _send(server, alice, room, "别人不能撤回")
+    r = await (
+        AsyncClient(base_url=server)
+    ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {bob['token']}"})
+    assert r.status_code == 403
+    assert r.json()["code"] == 40003
+
+
+async def test_recall_timeout_expired(server: str):
+    alice = await _register(server)
+    bob = await _register(server)
+    room = await _single_room(server, alice, bob)
+    msg = await _send(server, alice, room, "老消息")
+    # 把 created_at 拨到 3 分钟前，模拟超时不让撤回
+    async with session_factory() as s:
+        m = await MessageRepo.get_by_id(s, int(msg["id"]))
+        m.created_at = datetime.now(UTC) - timedelta(minutes=3)
+        await s.commit()
+    r = await (
+        AsyncClient(base_url=server)
+    ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {alice['token']}"})
+    assert r.status_code == 422
+    assert r.json()["code"] == 40002
+
+
+async def test_mark_toggle_idempotent_and_count(server: str):
+    alice = await _register(server)
+    bob = await _register(server)
+    room = await _single_room(server, alice, bob)
+    msg = await _send(server, alice, room, "点个赞")
+
+    async with AsyncClient(base_url=server) as c:
+        h = {"Authorization": f"Bearer {bob['token']}"}
+        # 第一次点赞 → count 1
+        r1 = await c.post(f"/api/v1/messages/{msg['id']}/marks", json={"mark_type": 1}, headers=h)
+        assert r1.status_code == 200
+        assert r1.json()["data"]["count"] == 1
+        # 再点同类型 → 取消，count 0
+        r2 = await c.post(f"/api/v1/messages/{msg['id']}/marks", json={"mark_type": 1}, headers=h)
+        assert r2.json()["data"]["count"] == 0
+        # 第三次 → 又回来，count 1
+        r3 = await c.post(f"/api/v1/messages/{msg['id']}/marks", json={"mark_type": 1}, headers=h)
+        assert r3.json()["data"]["count"] == 1
+
+
+async def test_read_receipt_advances_only_and_push(server: str):
+    alice = await _register(server)
+    bob = await _register(server)
+    room = await _single_room(server, alice, bob)
+    m1 = await _send(server, alice, room, "消息1")
+    m2 = await _send(server, alice, room, "消息2")
+    m3 = await _send(server, alice, room, "消息3")
+
+    async with AsyncClient(base_url=server) as c:
+        h = {"Authorization": f"Bearer {bob['token']}"}
+        # bob 读到 m2 → 未读只剩 m3（1 条）
+        r1 = await c.post(f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m2["id"]}, headers=h)
+        assert r1.json()["data"]["unread_count"] == 1
+        # 乱序回退：bob 报到 m1（更小）→ GREATEST 不回退，未读仍是 1
+        r2 = await c.post(f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m1["id"]}, headers=h)
+        assert r2.json()["data"]["unread_count"] == 1
+
+    # bob 上报已读，A 在线应收到 message.read 推送（先排空历史重放）
+    async with websockets.connect(_ws_url(alice["token"])) as ws:
+        await _drain_sync(ws)
+        async with AsyncClient(base_url=server) as c:
+            await c.post(
+                f"/api/v1/rooms/{room}/read",
+                json={"last_read_msg_id": m3["id"]},
+                headers={"Authorization": f"Bearer {bob['token']}"},
+            )
+        ev = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
+        assert ev["type"] == "message.read"
+        assert ev["data"]["user_id"] == bob["id"]
+        assert ev["data"]["last_read_msg_id"] == m3["id"]
