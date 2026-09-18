@@ -1,4 +1,4 @@
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error_codes import ErrorCode
@@ -118,3 +118,19 @@ class RoomRepo:
         await session.execute(
             delete(RoomMember).where(RoomMember.room_id == room_id, RoomMember.user_id == user_id)
         )
+
+    @staticmethod
+    async def update_last_read(session: AsyncSession, room_id: int, user_id: int, msg_id: int) -> None:
+        """已读位点只前进：客户端可能乱序上报，用 GREATEST 避免回退（docs/11 M5）"""
+        await session.execute(
+            update(RoomMember)
+            .where(RoomMember.room_id == room_id, RoomMember.user_id == user_id)
+            .values(last_read_msg_id=func.greatest(RoomMember.last_read_msg_id, msg_id))
+        )
+
+    @staticmethod
+    async def get_member(session: AsyncSession, room_id: int, user_id: int) -> RoomMember | None:
+        stmt = select(RoomMember).where(
+            RoomMember.room_id == room_id, RoomMember.user_id == user_id
+        )
+        return (await session.execute(stmt)).scalar_one_or_none()

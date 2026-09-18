@@ -5,7 +5,9 @@ from starlette.responses import JSONResponse
 
 from app.core.deps import CurrentUser
 from app.core.response import ok
+from app.schemas.message import ReadReceiptIn
 from app.schemas.room import RoomOut, SingleRoomIn
+from app.services.message_service import MessageService
 from app.services.room_service import RoomService
 
 router = APIRouter(prefix="/rooms", tags=["rooms"])
@@ -34,3 +36,11 @@ async def create_single(body: SingleRoomIn, user: CurrentUser, request: Request)
 async def list_members(room_id: int, user: CurrentUser) -> dict[str, Any]:
     members = await RoomService.list_members(user_id=user.id, room_id=room_id)
     return ok(data={"list": [m.model_dump(mode="json") for m in members]})
+
+
+@router.post("/{room_id}/read")
+async def report_read(room_id: int, body: ReadReceiptIn, user: CurrentUser) -> dict[str, Any]:
+    unread = await MessageService.report_read(
+        user_id=user.id, room_id=room_id, last_read_msg_id=body.last_read_msg_id_int
+    )
+    return ok(data={"unread_count": unread})

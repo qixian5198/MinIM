@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -5,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import MessageStatus, MessageType
 from app.models.message import Message
+from app.models.message_mark import MessageMark
 
 MAX_PAGE_SIZE = 50
 DEFAULT_PAGE_SIZE = 20
@@ -77,5 +79,46 @@ class MessageRepo:
             Message.room_id == room_id,
             Message.id > msg_id,
             Message.status == MessageStatus.NORMAL,
+        )
+        return int((await session.execute(stmt)).scalar_one())
+
+    @staticmethod
+    async def recall(session: AsyncSession, msg: Message, recalled_by: int, recalled_at: datetime) -> None:
+        """撤回：type 置 RECALL(2)，extra 记撤回人与时间；status 仍 NORMAL，历史里留占位"""
+        msg.type = MessageType.RECALL
+        msg.extra = {"recalled_by": recalled_by, "recalled_at": recalled_at.isoformat()}
+        await session.flush()
+
+    @staticmethod
+    async def mark_toggle(
+        session: AsyncSession, *, msg_id: int, user_id: int, mark_type: int
+    ) -> tuple[str, int]:
+        """点赞/点踩幂等切换：同 (msg_id, user_id, mark_type) 已存在则删除，否则插入。
+
+        返回 (action, count)：action 为 "added" / "removed"，count 为该 mark_type 当前总数。
+        """
+        existing = (
+            await session.execute(
+                select(MessageMark).where(
+                    MessageMark.msg_id == msg_id,
+                    MessageMark.user_id == user_id,
+                    MessageMark.mark_type == mark_type,
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            await session.delete(existing)
+            action = "removed"
+        else:
+            session.add(MessageMark(msg_id=msg_id, user_id=user_id, mark_type=mark_type))
+            action = "added"
+        await session.flush()
+        count = await MessageRepo.count_marks(session, msg_id, mark_type)
+        return action, count
+
+    @staticmethod
+    async def count_marks(session: AsyncSession, msg_id: int, mark_type: int) -> int:
+        stmt = select(func.count(MessageMark.id)).where(
+            MessageMark.msg_id == msg_id, MessageMark.mark_type == mark_type
         )
         return int((await session.execute(stmt)).scalar_one())

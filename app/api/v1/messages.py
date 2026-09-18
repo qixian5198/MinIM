@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query
 
 from app.core.deps import CurrentUser
 from app.core.response import ok
-from app.schemas.message import MessageCreate, MessageOut
+from app.schemas.message import MarkIn, MessageCreate, MessageOut
 from app.services.message_service import MessageService
 
 router = APIRouter(tags=["messages"])
@@ -43,3 +43,15 @@ async def list_messages(
             "has_more": has_more,
         }
     )
+
+
+@router.post("/messages/{msg_id}/recall")
+async def recall_message(msg_id: int, user: CurrentUser) -> dict[str, Any]:
+    await MessageService.recall(user_id=user.id, msg_id=msg_id)
+    return ok(data=None)
+
+
+@router.post("/messages/{msg_id}/marks")
+async def mark_message(msg_id: int, body: MarkIn, user: CurrentUser) -> dict[str, Any]:
+    out = await MessageService.mark(user_id=user.id, msg_id=msg_id, mark_type=body.mark_type)
+    return ok(data=out.model_dump(mode="json"))

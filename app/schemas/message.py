@@ -50,3 +50,25 @@ class MessageOut(BaseModel):
             reply_to=str(msg.reply_to_id) if msg.reply_to_id else None,
             created_at=msg.created_at,
         )
+
+
+class MarkIn(BaseModel):
+    """点赞 / 点踩：1 点赞 · 2 点踩。重复提交同类型 = 取消（幂等切换）"""
+
+    mark_type: int = Field(ge=1, le=2)
+
+
+class MarkOut(BaseModel):
+    msg_id: str
+    mark_type: int
+    count: int
+
+
+class ReadReceiptIn(BaseModel):
+    """上报已读位点：room_id 走路径，body 只带已读到哪条消息"""
+
+    last_read_msg_id: str = Field(pattern=_ID_PATTERN)
+
+    @property
+    def last_read_msg_id_int(self) -> int:
+        return int(self.last_read_msg_id)

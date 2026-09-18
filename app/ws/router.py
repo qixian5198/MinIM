@@ -10,6 +10,7 @@ from app.core.security import decode_token
 from app.db import session_factory
 from app.models.user import User
 from app.repositories.user_repo import UserRepo
+from app.services.message_service import MessageService
 from app.services.push_service import PushService
 from app.ws.manager import manager
 
@@ -65,6 +66,21 @@ async def websocket_endpoint(
                 continue
             if frame.get("type") == "ping":
                 await ws.send_json(_envelope("pong", {}))
+            elif frame.get("type") == "message.read":
+                # 客户端上报已读：更新位点并推 message.read 给房间其他人
+                data = frame.get("data") or {}
+                rid = data.get("room_id")
+                lrm = data.get("last_read_msg_id", 0)
+                if rid is None:
+                    continue
+                try:
+                    rid = int(rid)
+                    lrm = int(lrm)
+                except (TypeError, ValueError):
+                    continue
+                await MessageService.report_read(
+                    user_id=user.id, room_id=rid, last_read_msg_id=lrm
+                )
     except WebSocketDisconnect:
         pass
     except Exception:
