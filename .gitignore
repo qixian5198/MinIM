@@ -41,3 +41,6 @@ data/
 # 本地工具
 .docker/
 uv.lock
+
+# WorkBuddy 会话记忆（本地，不进仓库）
+.workbuddy/
