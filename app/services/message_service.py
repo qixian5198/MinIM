@@ -1,5 +1,7 @@
 from typing import Any
 
+import structlog
+
 from app.db import session_factory
 from app.models.enums import MessageType
 from app.models.message import Message
@@ -7,8 +9,11 @@ from app.repositories.message_repo import MessageRepo
 from app.repositories.outbox_repo import OutboxRepo
 from app.repositories.room_repo import RoomRepo
 from app.security.sensitive import sensitive_filter
+from app.services.push_service import PushService
 
-# WS 推送（M3）就按这个 topic 消费 outbox，M2 只写不消费
+logger = structlog.get_logger()
+
+# WS 推送就按这个 topic 消费 outbox（M2 埋的口子，M3 开始消费）
 TOPIC_MESSAGE_NEW = "message.new"
 
 
@@ -39,7 +44,7 @@ class MessageService:
                     reply_to_id=reply_to_id,
                     extra=extra,
                 )
-                await OutboxRepo.create(
+                outbox = await OutboxRepo.create(
                     session,
                     topic=TOPIC_MESSAGE_NEW,
                     payload={"msg_id": msg.id, "room_id": room_id},
@@ -50,7 +55,13 @@ class MessageService:
             except Exception:
                 await session.rollback()
                 raise
-            return msg
+
+        # 推送在事务外：推失败不能回滚已入库的消息，outbox 留着待发，M6 会重试
+        try:
+            await PushService.dispatch(msg_id=msg.id, outbox_id=outbox.id)
+        except Exception:
+            logger.exception("push failed, outbox stays pending", msg_id=msg.id)
+        return msg
 
     @staticmethod
     async def list_messages(
