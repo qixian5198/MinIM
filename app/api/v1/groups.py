@@ -2,6 +2,7 @@ from typing import Any
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
+from starlette.responses import JSONResponse
 
 from app.core.deps import CurrentUser
 from app.core.response import ok
@@ -22,14 +23,14 @@ router = APIRouter(prefix="/rooms", tags=["groups"])
 
 
 @router.post("/group")
-async def create_group(body: GroupCreateIn, user: CurrentUser) -> dict[str, Any]:
+async def create_group(body: GroupCreateIn, user: CurrentUser) -> JSONResponse:
     room = await GroupService.create_group(
         user_id=user.id,
         name=body.name,
         member_ids=body.member_ids,
         member_limit=body.member_limit,
     )
-    return ok(data=room.model_dump(mode="json"))
+    return JSONResponse(status_code=201, content=ok(data=room.model_dump(mode="json")))
 
 
 @router.post("/{room_id}/members")

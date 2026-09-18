@@ -1,6 +1,7 @@
 from typing import Any
 
 from fastapi import APIRouter, Query
+from starlette.responses import JSONResponse
 
 from app.core.deps import CurrentUser
 from app.core.response import ok
@@ -15,9 +16,9 @@ router = APIRouter(prefix="/friends", tags=["friends"])
 
 
 @router.post("/requests")
-async def create_request(body: FriendRequestIn, user: CurrentUser) -> dict[str, Any]:
+async def create_request(body: FriendRequestIn, user: CurrentUser) -> JSONResponse:
     out = await FriendService.apply(user_id=user.id, to_uid=body.to_uid_int, message=body.message)
-    return ok(data=out.model_dump(mode="json"))
+    return JSONResponse(status_code=201, content=ok(data=out.model_dump(mode="json")))
 
 
 @router.get("/requests")
