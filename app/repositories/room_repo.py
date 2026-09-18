@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error_codes import ErrorCode
@@ -111,3 +111,10 @@ class RoomRepo:
         if room.owner_id != user_id:
             raise ApiError(ErrorCode.NOT_GROUP_OWNER, "仅群主可操作", 403)
         return room
+
+    @staticmethod
+    async def delete_member(session: AsyncSession, room_id: int, user_id: int) -> None:
+        """踢人 / 退群：直接按条件删 room_member"""
+        await session.execute(
+            delete(RoomMember).where(RoomMember.room_id == room_id, RoomMember.user_id == user_id)
+        )
