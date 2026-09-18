@@ -14,7 +14,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 @router.get("")
 async def list_rooms(user: CurrentUser) -> dict[str, Any]:
     cards = await RoomService.list_my_rooms(user.id)
-    return ok(data={"list": [c.model_dump() for c in cards]})
+    return ok(data={"list": [c.model_dump(mode="json") for c in cards]})
 
 
 @router.post("/single")
@@ -24,7 +24,7 @@ async def create_single(body: SingleRoomIn, user: CurrentUser, request: Request)
     )
     # 幂等接口：新建返回 201，命中已有会话返回 200（docs/06 §5）
     body_data = ok(
-        data=RoomOut.from_model(room).model_dump(),
+        data=RoomOut.from_model(room).model_dump(mode="json"),
         request_id=getattr(request.state, "request_id", None),
     )
     return JSONResponse(status_code=201 if created else 200, content=body_data)
@@ -33,4 +33,4 @@ async def create_single(body: SingleRoomIn, user: CurrentUser, request: Request)
 @router.get("/{room_id}/members")
 async def list_members(room_id: int, user: CurrentUser) -> dict[str, Any]:
     members = await RoomService.list_members(user_id=user.id, room_id=room_id)
-    return ok(data={"list": [m.model_dump() for m in members]})
+    return ok(data={"list": [m.model_dump(mode="json") for m in members]})

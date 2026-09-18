@@ -20,7 +20,7 @@ async def send_message(body: MessageCreate, user: CurrentUser) -> dict[str, Any]
         reply_to_id=body.reply_to_int,
         extra=body.extra,
     )
-    return ok(data=MessageOut.from_model(msg).model_dump())
+    return ok(data=MessageOut.from_model(msg).model_dump(mode="json"))
 
 
 @router.get("/rooms/{room_id}/messages")
@@ -38,7 +38,7 @@ async def list_messages(
     )
     return ok(
         data={
-            "list": [MessageOut.from_model(m).model_dump() for m in items],
+            "list": [MessageOut.from_model(m).model_dump(mode="json") for m in items],
             "next_cursor": next_cursor,
             "has_more": has_more,
         }

@@ -35,7 +35,8 @@ class PushService:
             audience = [m.user_id for m in members]
             event = await PushService._emit(
                 type="message.new",
-                data=MessageOut.from_model(msg).model_dump(),
+                # mode="json"：默认 model_dump() 会保留 datetime 对象，json.dumps 会直接炸
+                data=MessageOut.from_model(msg).model_dump(mode="json"),
                 audience=audience,
             )
             for uid in audience:
