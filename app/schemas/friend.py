@@ -18,6 +18,14 @@ class FriendActionIn(BaseModel):
     action: str  # accept | reject
 
 
+class BlockIn(BaseModel):
+    uid: str = Field(pattern=_ID_PATTERN)
+
+    @property
+    def uid_int(self) -> int:
+        return int(self.uid)
+
+
 class FriendUser(BaseModel):
     id: str
     nickname: str | None = None

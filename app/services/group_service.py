@@ -12,7 +12,7 @@ from app.services.push_service import PushService
 class GroupService:
     @staticmethod
     async def create_group(
-        *, user_id: int, name: str | None, member_ids: list[int], member_limit: int = 500
+        *, user_id: int, name: str | None, member_ids: list[int], member_limit: int | None = None
     ) -> RoomOut:
         """建群：room + owner member + 批量 member + 系统消息，同一事务；推 room.created"""
         async with session_factory() as session:
