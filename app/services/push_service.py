@@ -46,6 +46,16 @@ class PushService:
             await session.commit()
 
     @staticmethod
+    async def emit_event(event_type: str, data: dict[str, Any], audience: list[int]) -> None:
+        """通用的"写事件 + 实时推给在线 audience"入口：好友/群聊等非消息事件复用。
+
+        与 dispatch 的区别：dispatch 从已落库消息反查 audience，这里 audience 直接给。
+        """
+        event = await PushService._emit(type=event_type, data=data, audience=audience)
+        for uid in audience:
+            await manager.send_to_user(uid, event)
+
+    @staticmethod
     async def replay(user_id: int, last_seq: int) -> list[dict[str, Any]]:
         """补发 last_seq 之后、且属于该用户的事件"""
         raw = await lrange(EVENT_KEY, 0, MAX_EVENTS - 1)
