@@ -8,6 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
+# 必须显式导入模型，否则 autogenerate 看不到任何表
+import app.models  # noqa: F401
 from alembic import context
 from app.core.config import settings
 from app.db import Base
