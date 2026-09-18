@@ -140,9 +140,11 @@ async def test_offline_messages_are_replayed_on_reconnect(server: str):
         assert types == ["message.new", "message.new", "sync.done"]
         assert json.loads(events[0])["data"]["content"] == "离线第一条"
         assert json.loads(events[1])["data"]["content"] == "离线第二条"
+        # 记录已收到的最大 seq，避免依赖全局计数器（跨测试共享、单调递增）
+        last_seq = json.loads(events[1])["seq"]
 
-    # 带 last_seq 重连不该重复补发
-    async with websockets.connect(_ws_url(bob["token"], last_seq=99)) as ws:
+    # 带真实 last_seq 重连不该重复补发
+    async with websockets.connect(_ws_url(bob["token"], last_seq=last_seq)) as ws:
         first = await asyncio.wait_for(ws.recv(), timeout=5)
         import json
 
