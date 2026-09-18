@@ -40,3 +40,4 @@ data/
 
 # 本地工具
 .docker/
+uv.lock
