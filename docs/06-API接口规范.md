@@ -109,6 +109,7 @@ HTTP 状态码与业务 code 的对应：
 | 30002 | NOT_ROOM_MEMBER | 403 | 非会话成员 |
 | 30003 | MEMBER_LIMIT_EXCEEDED | 422 | 群成员超限 |
 | 30004 | NOT_GROUP_OWNER | 403 | 非群主 |
+| 30005 | ROOM_SELF_NOT_ALLOWED | 400 | 不能和自己建单聊 |
 | 40001 | MESSAGE_NOT_FOUND | 404 | 消息不存在 |
 | 40002 | MESSAGE_RECALL_TIMEOUT | 422 | 超过撤回时限 |
 | 40003 | NOT_MESSAGE_SENDER | 403 | 非消息发送者 |
@@ -239,7 +240,7 @@ HTTP 状态码与业务 code 的对应：
 { "code": 0, "data": { "id": "50001", "type": 1, "name": null } }
 ```
 
-**错误**：`50003` 已被对方拉黑
+**错误**：`50003` 已被对方拉黑 · `30005` target_uid 是自己 · `10003` 用户不存在
 
 ---
 

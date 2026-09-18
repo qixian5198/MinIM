@@ -4,6 +4,7 @@ M2 只写不消费，M6 才会加轮询投递。
 """
 
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import BigInteger, Integer, SmallInteger, String, func
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
@@ -18,7 +19,7 @@ class Outbox(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     topic: Mapped[str] = mapped_column(String(50), nullable=False)
-    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     status: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=OutboxStatus.PENDING)
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     next_retry_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))

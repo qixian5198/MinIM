@@ -1,3 +1,5 @@
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,7 +20,7 @@ class MessageRepo:
         type: MessageType = MessageType.TEXT,
         content: str | None = None,
         reply_to_id: int | None = None,
-        extra: dict | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> Message:
         msg = Message(
             room_id=room_id,

@@ -12,6 +12,14 @@ class UserRepo:
         return await session.get(User, user_id)
 
     @staticmethod
+    async def get_by_ids(session: AsyncSession, user_ids: list[int]) -> dict[int, User]:
+        """批量取用户：成员列表/会话列表里逐条查会变成 N+1"""
+        if not user_ids:
+            return {}
+        result = await session.execute(select(User).where(User.id.in_(user_ids)))
+        return {u.id: u for u in result.scalars().all()}
+
+    @staticmethod
     async def get_by_username(session: AsyncSession, username: str) -> User | None:
         result = await session.execute(select(User).where(User.username == username))
         return result.scalar_one_or_none()

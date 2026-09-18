@@ -7,9 +7,13 @@ DFA/Trie 实现：构建一次，之后每条消息 O(n) 单趟扫描。
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 
 REPLACEMENT = "***"
 _END = "__end__"
+
+# 节点要么指向子树，要么是结束标记，值类型不统一，只能 Any
+Trie = dict[str, Any]
 
 # 词库本该来自 sensitive_words 表（M7 接入），这里先给一份占位，
 # 保证 M2 链路能跑通；load() 可重复调用覆盖。
@@ -18,7 +22,7 @@ DEFAULT_WORDS = ["傻逼", "垃圾", "fuck", "赌博"]
 
 class DFAFilter:
     def __init__(self, words: Iterable[str] | None = None) -> None:
-        self._root: dict[str, dict] = {}
+        self._root: Trie = {}
         if words is not None:
             self.load(words)
 

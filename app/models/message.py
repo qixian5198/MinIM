@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import BigInteger, SmallInteger, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP
@@ -19,7 +20,7 @@ class Message(Base):
     content: Mapped[str | None] = mapped_column(Text)
     reply_to_id: Mapped[int | None] = mapped_column(BigInteger)
     # 不同类型消息的扩展字段不同（图片尺寸/撤回人），用 JSONB 避免频繁加列
-    extra: Mapped[dict | None] = mapped_column(JSONB)
+    extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     status: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=MessageStatus.NORMAL)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, server_default=func.now()
