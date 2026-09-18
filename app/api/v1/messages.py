@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Query
 
 from app.core.deps import CurrentUser
@@ -9,7 +11,7 @@ router = APIRouter(tags=["messages"])
 
 
 @router.post("/messages", status_code=201)
-async def send_message(body: MessageCreate, user: CurrentUser) -> dict:
+async def send_message(body: MessageCreate, user: CurrentUser) -> dict[str, Any]:
     msg = await MessageService.send(
         user_id=user.id,
         room_id=body.room_id_int,
@@ -27,7 +29,7 @@ async def list_messages(
     user: CurrentUser,
     cursor: str | None = Query(default=None, pattern=r"^\d+$"),
     limit: int = Query(default=20, ge=1, le=50),
-):
+) -> dict[str, Any]:
     items, next_cursor, has_more = await MessageService.list_messages(
         user_id=user.id,
         room_id=room_id,

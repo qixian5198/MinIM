@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter, Request
 from starlette.responses import JSONResponse
 
@@ -10,7 +12,7 @@ router = APIRouter(prefix="/rooms", tags=["rooms"])
 
 
 @router.get("")
-async def list_rooms(user: CurrentUser) -> dict:
+async def list_rooms(user: CurrentUser) -> dict[str, Any]:
     cards = await RoomService.list_my_rooms(user.id)
     return ok(data={"list": [c.model_dump() for c in cards]})
 
@@ -29,6 +31,6 @@ async def create_single(body: SingleRoomIn, user: CurrentUser, request: Request)
 
 
 @router.get("/{room_id}/members")
-async def list_members(room_id: int, user: CurrentUser) -> dict:
+async def list_members(room_id: int, user: CurrentUser) -> dict[str, Any]:
     members = await RoomService.list_members(user_id=user.id, room_id=room_id)
     return ok(data={"list": [m.model_dump() for m in members]})

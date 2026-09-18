@@ -1,4 +1,6 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,7 +12,7 @@ from app.core.logging import setup_logging
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     yield
 
@@ -35,7 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(api_v1_router, prefix="/api/v1")
 
     @app.get("/health")
-    async def health():
+    async def health() -> dict[str, Any]:
         return {"status": "ok", "env": settings.APP_ENV}
 
     return app

@@ -12,5 +12,5 @@ class ApiResponse(BaseModel, Generic[T]):
     request_id: str | None = None
 
 
-def ok(data: Any = None, request_id: str | None = None) -> dict:
+def ok(data: Any = None, request_id: str | None = None) -> dict[str, Any]:
     return ApiResponse(code=0, data=data, request_id=request_id).model_dump()

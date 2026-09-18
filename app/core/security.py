@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from jose import ExpiredSignatureError, JWTError, jwt
 from passlib.context import CryptContext
@@ -37,7 +38,7 @@ def _issue_token(user_id: int, token_type: str, ttl: timedelta) -> str:
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str) -> dict[str, Any]:
     try:
         return jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM])
     except ExpiredSignatureError:

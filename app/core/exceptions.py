@@ -1,8 +1,9 @@
 import uuid
+from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, status
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, Response
 
 
 class ApiError(Exception):
@@ -39,6 +40,8 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.middleware("http")
-    async def request_id_middleware(request: Request, call_next):
+    async def request_id_middleware(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
         request.state.request_id = uuid.uuid4().hex
         return await call_next(request)

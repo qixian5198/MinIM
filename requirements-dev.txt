@@ -4,5 +4,8 @@ pytest-cov==6.0.0
 httpx==0.28.1
 ruff==0.8.4
 mypy==1.14.0
+# jose / passlib 都没有自带类型，不装这两个 stub 时 mypy strict 会报 import-untyped
+types-python-jose==3.5.0.20260408
+types-passlib==1.7.7.20260211
 testcontainers==4.9.0
 locust==2.32.5

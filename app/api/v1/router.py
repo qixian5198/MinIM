@@ -1,3 +1,5 @@
+from typing import Any
+
 from fastapi import APIRouter
 
 from app.api.v1.auth import router as auth_router
@@ -14,5 +16,5 @@ router.include_router(messages_router)
 
 
 @router.get("/ping")
-async def ping():
+async def ping() -> dict[str, Any]:
     return ok(data={"pong": True})

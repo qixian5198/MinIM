@@ -1,7 +1,11 @@
 import re
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, Field, field_validator
+
+if TYPE_CHECKING:
+    from app.models.user import User
 
 
 def _validate_password(password: str) -> str:
@@ -39,7 +43,7 @@ class UserOut(BaseModel):
     avatar_url: str | None
 
     @classmethod
-    def from_model(cls, user) -> "UserOut":
+    def from_model(cls, user: "User") -> "UserOut":
         return cls(
             id=str(user.id),
             username=user.username,
@@ -52,7 +56,7 @@ class MeOut(UserOut):
     created_at: datetime
 
     @classmethod
-    def from_model(cls, user) -> "MeOut":
+    def from_model(cls, user: "User") -> "MeOut":
         return cls(
             id=str(user.id),
             username=user.username,
