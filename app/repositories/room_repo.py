@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.error_codes import ErrorCode
@@ -92,4 +92,22 @@ class RoomRepo:
             raise ApiError(ErrorCode.ROOM_NOT_FOUND, "会话不存在", 404)
         if not await RoomRepo.is_member(session, room_id, user_id):
             raise ApiError(ErrorCode.NOT_ROOM_MEMBER, "不是该会话成员", 403)
+        return room
+
+    @staticmethod
+    async def count_members(session: AsyncSession, room_id: int) -> int:
+        """群聊加人前校验成员上限用"""
+        stmt = select(func.count()).select_from(RoomMember).where(RoomMember.room_id == room_id)
+        return int((await session.execute(stmt)).scalar_one())
+
+    @staticmethod
+    async def assert_owner(session: AsyncSession, room_id: int, user_id: int) -> Room:
+        """群主专属操作（加人/踢人/改设置）前的权限校验"""
+        room = await RoomRepo.get_by_id(session, room_id)
+        if room is None:
+            raise ApiError(ErrorCode.ROOM_NOT_FOUND, "会话不存在", 404)
+        if room.type != RoomType.GROUP:
+            raise ApiError(ErrorCode.NOT_GROUP_OWNER, "不是群聊", 403)
+        if room.owner_id != user_id:
+            raise ApiError(ErrorCode.NOT_GROUP_OWNER, "仅群主可操作", 403)
         return room
