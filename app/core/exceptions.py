@@ -13,7 +13,9 @@ class ApiError(Exception):
         super().__init__(message)
 
 
-def _error_response(code: int, message: str, http_status: int, request_id: str | None) -> JSONResponse:
+def _error_response(
+    code: int, message: str, http_status: int, request_id: str | None
+) -> JSONResponse:
     return JSONResponse(
         status_code=http_status,
         content={"code": code, "message": message, "data": None, "request_id": request_id},
