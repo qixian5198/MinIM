@@ -28,3 +28,6 @@ async def get_current_user(
     if user.status != 0:
         raise ApiError(ErrorCode.USER_DISABLED, "账号已禁用", 403)
     return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
