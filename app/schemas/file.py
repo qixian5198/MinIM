@@ -1,6 +1,10 @@
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from app.models.file import File
 
 
 class FileOut(BaseModel):
@@ -11,7 +15,7 @@ class FileOut(BaseModel):
     created_at: datetime
 
     @classmethod
-    def from_model(cls, record, base_url: str = "") -> "FileOut":
+    def from_model(cls, record: "File", base_url: str = "") -> "FileOut":
         return cls(
             id=str(record.id),
             url=f"{base_url}/{record.object_key}",

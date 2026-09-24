@@ -1,5 +1,6 @@
 import mimetypes
 import uuid
+from typing import Any
 
 from fastapi import UploadFile
 
@@ -20,7 +21,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024
 ALLOWED_EXTS = IMAGE_EXTS | {".pdf", ".zip"}
 
 
-async def upload(user: User, file: UploadFile) -> dict:
+async def upload(user: User, file: UploadFile) -> dict[str, Any]:
     data = await file.read()
     size = len(data)
     filename = file.filename or "unnamed"

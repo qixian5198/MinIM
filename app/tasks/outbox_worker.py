@@ -5,6 +5,7 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 import structlog
 
@@ -17,10 +18,10 @@ logger = structlog.get_logger()
 MAX_RETRY = 5
 CLEANUP_AGE_SECONDS = 7 * 86400
 
-Dispatcher = Callable[[dict, int], Awaitable[None]]
+Dispatcher = Callable[[dict[str, Any], int], Awaitable[None]]
 
 
-async def default_dispatcher(payload: dict, outbox_id: int) -> None:
+async def default_dispatcher(payload: dict[str, Any], outbox_id: int) -> None:
     """PushService.dispatch 内部会 mark_sent + commit，自己管理 session。"""
     await PushService.dispatch(msg_id=payload["msg_id"], outbox_id=outbox_id)
 
@@ -35,7 +36,7 @@ class OutboxWorker:
     ) -> None:
         self._dispatcher = dispatcher or default_dispatcher
         self._poll_interval = poll_interval
-        self._task: asyncio.Task | None = None
+        self._task: asyncio.Task[None] | None = None
 
     async def run_forever(self) -> None:
         while True:
