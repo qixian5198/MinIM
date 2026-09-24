@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import APIRouter
 
 from app.api.v1.auth import router as auth_router
+from app.api.v1.files import router as files_router
 from app.api.v1.friends import router as friends_router
 from app.api.v1.groups import router as groups_router
 from app.api.v1.messages import router as messages_router
@@ -17,6 +18,7 @@ router.include_router(rooms_router)
 router.include_router(messages_router)
 router.include_router(friends_router)
 router.include_router(groups_router)
+router.include_router(files_router)
 
 
 @router.get("/ping")
