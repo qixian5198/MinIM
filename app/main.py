@@ -12,6 +12,7 @@ from app.core.config import settings
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import setup_logging
 from app.core.redis import close_redis
+from app.tasks.outbox_worker import worker as outbox_worker
 from app.ws.manager import manager
 from app.ws.router import router as ws_router
 
@@ -37,9 +38,11 @@ async def _sweep_stale_connections() -> None:
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     setup_logging()
     sweeper = asyncio.create_task(_sweep_stale_connections())
+    outbox_worker.start()
     try:
         yield
     finally:
+        await outbox_worker.stop()
         sweeper.cancel()
         await close_redis()
 
