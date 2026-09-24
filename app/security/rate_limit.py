@@ -29,7 +29,9 @@ from fastapi import Request
 from app.core import redis
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import ApiError
+from app.models.enums import AuditResult
 from app.models.user import User
+from app.security import audit
 
 logger = structlog.get_logger()
 
@@ -78,6 +80,13 @@ async def enforce(
             return None
         raise
     if retry_after:
+        # 频控拦截是安全事件，留痕（IP 维度才有 ip 可记）
+        await audit.record(
+            action="rate.blocked",
+            result=AuditResult.DENIED,
+            detail=f"{name}:{dimension}",
+            ip=identity if dimension == "ip" else None,
+        )
         raise ApiError(
             ErrorCode.RATE_LIMITED,
             f"请求过于频繁，请 {retry_after} 秒后重试",

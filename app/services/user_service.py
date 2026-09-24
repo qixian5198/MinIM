@@ -10,9 +10,11 @@ from app.core.security import (
     verify_password,
 )
 from app.db import session_factory
+from app.models.enums import AuditResult
 from app.models.user import User
 from app.repositories.user_repo import UserRepo
 from app.schemas.user import AuthOut, PatchMeIn, UserOut
+from app.security import audit
 
 
 class UserService:
@@ -42,9 +44,25 @@ class UserService:
         async with session_factory() as session:
             user = await UserRepo.get_by_username(session, username)
             if user is None or not verify_password(password, user.password_hash):
+                # 登录失败没有 user_id 可记，只能记用户名——审计要能追溯"谁在撞库"
+                await audit.record(
+                    action="login", result=AuditResult.DENIED, detail=username
+                )
                 raise ApiError(ErrorCode.PASSWORD_WRONG, "密码错误", 401)
             if user.status != 0:
+                await audit.record(
+                    action="login",
+                    user_id=user.id,
+                    result=AuditResult.DENIED,
+                    detail="账号已禁用",
+                )
                 raise ApiError(ErrorCode.USER_DISABLED, "账号已禁用", 403)
+            await audit.record(
+                action="login",
+                user_id=user.id,
+                target_type="user",
+                target_id=str(user.id),
+            )
             return await UserService._auth_out(user)
 
     @staticmethod

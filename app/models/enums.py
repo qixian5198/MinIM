@@ -31,3 +31,10 @@ class OutboxStatus(IntEnum):
     PENDING = 0
     SENT = 1
     DEAD = 2
+
+
+class AuditResult(IntEnum):
+    """审计结果：放行还是被拒（M7 · docs/08 抵赖风险）"""
+
+    SUCCESS = 0
+    DENIED = 1

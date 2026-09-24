@@ -6,12 +6,13 @@ import structlog
 from app.core.error_codes import ErrorCode
 from app.core.exceptions import ApiError
 from app.db import session_factory
-from app.models.enums import MessageType
+from app.models.enums import AuditResult, MessageType
 from app.models.message import Message
 from app.repositories.message_repo import MessageRepo
 from app.repositories.outbox_repo import OutboxRepo
 from app.repositories.room_repo import RoomRepo
 from app.schemas.message import MarkOut
+from app.security import audit
 from app.security.sensitive import sensitive_filter
 from app.services.push_service import PushService
 
@@ -36,9 +37,12 @@ class MessageService:
     ) -> Message:
         async with session_factory() as session:
             room = await RoomRepo.assert_member(session, room_id, user_id)
-            # 敏感词命中不报错，替换后照常入库（docs/06 §6）
+            # 敏感词命中不报错，替换后照常入库（docs/06 §6）；命中要留审计（M7）
+            sensitive_hit = False
             if content:
-                content = sensitive_filter.filter(content)
+                filtered = sensitive_filter.filter(content)
+                sensitive_hit = filtered != content
+                content = filtered
 
             try:
                 msg = await MessageRepo.create(
@@ -61,6 +65,17 @@ class MessageService:
             except Exception:
                 await session.rollback()
                 raise
+
+        # 敏感词命中是"放行但留痕"：消息照发，审计记一笔
+        if sensitive_hit:
+            await audit.record(
+                action="msg.sensitive",
+                user_id=user_id,
+                target_type="room",
+                target_id=str(room_id),
+                result=AuditResult.SUCCESS,
+                detail="命中敏感词，已替换为 ***",
+            )
 
         # 推送在事务外：推失败不能回滚已入库的消息，outbox 留着待发，M6 会重试
         try:

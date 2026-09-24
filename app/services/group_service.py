@@ -6,6 +6,7 @@ from app.repositories.message_repo import MessageRepo
 from app.repositories.room_repo import RoomRepo
 from app.repositories.user_repo import UserRepo
 from app.schemas.room import RoomOut
+from app.security import audit
 from app.services.push_service import PushService
 
 
@@ -129,6 +130,15 @@ class GroupService:
                 removed = target_uid
 
             await session.commit()
+
+            # 退群和踢人都是不可逆的成员变更，必须留痕
+            await audit.record(
+                action="room.leave" if removed == user_id else "room.kick",
+                user_id=user_id,
+                target_type="room",
+                target_id=str(room_id),
+                detail=f"removed={removed}",
+            )
 
             members = await RoomRepo.list_members(session, room_id)
             audience = [m.user_id for m in members]
