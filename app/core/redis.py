@@ -28,3 +28,33 @@ async def ltrim(key: str, start: int, end: int) -> None:
 async def lrange(key: str, start: int, end: int) -> list[str]:
     result: list[str] = await redis_client.lrange(key, start, end)  # type: ignore[misc]
     return result
+
+
+async def zadd(key: str, member: str, score: float) -> None:
+    await redis_client.zadd(key, {member: score})
+
+
+async def zremrangebyscore(key: str, min_score: float, max_score: float) -> None:
+    await redis_client.zremrangebyscore(key, min_score, max_score)
+
+
+async def zcard(key: str) -> int:
+    return int(await redis_client.zcard(key))
+
+
+async def zrange_withscores(key: str, start: int, end: int) -> list[tuple[str, float]]:
+    raw: list[tuple[str, float]] = await redis_client.zrange(key, start, end, withscores=True)
+    return [(member, float(score)) for member, score in raw]
+
+
+async def expire(key: str, seconds: int) -> None:
+    await redis_client.expire(key, seconds)
+
+
+async def delete(*keys: str) -> None:
+    await redis_client.delete(*keys)
+
+
+async def keys(pattern: str) -> list[str]:
+    result: list[str] = await redis_client.keys(pattern)
+    return result

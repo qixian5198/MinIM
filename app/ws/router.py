@@ -10,6 +10,7 @@ from app.core.security import decode_token
 from app.db import session_factory
 from app.models.user import User
 from app.repositories.user_repo import UserRepo
+from app.security.rate_limit import enforce
 from app.services.message_service import MessageService
 from app.services.push_service import PushService
 from app.ws.manager import manager
@@ -19,6 +20,7 @@ logger = structlog.get_logger()
 router = APIRouter(tags=["ws"])
 
 WS_CLOSE_AUTH_FAILED = 4001
+WS_CLOSE_RATE_LIMITED = 4002
 
 
 async def _user_from_token(token: str) -> User | None:
@@ -48,6 +50,21 @@ async def websocket_endpoint(
         # 必须在 accept 之前关：一旦握手完成再关，客户端只能看到"连接被关闭"，
         # 分不清是鉴权失败还是网络问题
         await ws.close(code=WS_CLOSE_AUTH_FAILED)
+        return
+
+    # 连接频控（docs/08 §5：WS 连接 IP 20/分钟）。同样在 accept 之前关，
+    # 客户端拿到的是 HTTP 403——握手没完成，WebSocket 关闭码传不过去；
+    # 4002 只留在服务端日志里跟鉴权失败 4001 区分。
+    try:
+        await enforce(
+            name="ws",
+            dimension="ip",
+            identity=ws.client.host if ws.client else "unknown",
+            limit=20,
+            window=60,
+        )
+    except ApiError:
+        await ws.close(code=WS_CLOSE_RATE_LIMITED)
         return
 
     await manager.connect(user.id, ws)

@@ -5,12 +5,14 @@ from fastapi import APIRouter, Query
 from app.core.deps import CurrentUser
 from app.core.response import ok
 from app.schemas.message import MarkIn, MessageCreate, MessageOut
+from app.security.rate_limit import rate_limit
 from app.services.message_service import MessageService
 
 router = APIRouter(tags=["messages"])
 
 
 @router.post("/messages", status_code=201)
+@rate_limit(name="msg", key="user", limit=20, window=60)
 async def send_message(body: MessageCreate, user: CurrentUser) -> dict[str, Any]:
     msg = await MessageService.send(
         user_id=user.id,
