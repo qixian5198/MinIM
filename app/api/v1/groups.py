@@ -40,8 +40,6 @@ async def add_members(room_id: int, body: MemberAddIn, user: CurrentUser) -> dic
 
 
 @router.delete("/{room_id}/members/{target_uid}")
-async def leave_or_kick(
-    room_id: int, target_uid: int, user: CurrentUser
-) -> dict[str, Any]:
+async def leave_or_kick(room_id: int, target_uid: int, user: CurrentUser) -> dict[str, Any]:
     await GroupService.leave_or_kick(user_id=user.id, room_id=room_id, target_uid=target_uid)
     return ok(data=None)

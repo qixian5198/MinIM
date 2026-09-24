@@ -22,9 +22,7 @@ async def create_request(body: FriendRequestIn, user: CurrentUser) -> JSONRespon
 
 
 @router.get("/requests")
-async def list_requests(
-    user: CurrentUser, type: str = Query(default="received")
-) -> dict[str, Any]:
+async def list_requests(user: CurrentUser, type: str = Query(default="received")) -> dict[str, Any]:
     direction = "sent" if type == "sent" else "received"
     out = await FriendService.list_requests(user_id=user.id, direction=direction)
     return ok(data={"list": [o.model_dump(mode="json") for o in out]})

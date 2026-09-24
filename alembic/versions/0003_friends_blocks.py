@@ -7,8 +7,9 @@ blocks 是单向拉黑：A 拉黑 B 后 A 不再向 B 发申请，查询只用 (
 索引按 docs/05 §3 一次建齐；upgrade / downgrade 都验证过。
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0003_friends_blocks"
 down_revision = "0002_rooms_messages_outbox"

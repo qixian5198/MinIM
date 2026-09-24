@@ -49,9 +49,7 @@ async def _register(base: str) -> dict:
             json={"username": username, "password": "abcd1234"},
         )
         assert r.status_code == 201, r.text
-        r = await c.post(
-            "/api/v1/auth/login", json={"username": username, "password": "abcd1234"}
-        )
+        r = await c.post("/api/v1/auth/login", json={"username": username, "password": "abcd1234"})
         data = r.json()["data"]
         return {"id": data["user"]["id"], "token": data["access_token"]}
 
@@ -202,13 +200,17 @@ async def test_block_unblock_list(server: str):
             json={"uid": bob["id"]},
             headers={"Authorization": f"Bearer {alice['token']}"},
         )
-        bl = await c.get("/api/v1/friends/blocks", headers={"Authorization": f"Bearer {alice['token']}"})
+        bl = await c.get(
+            "/api/v1/friends/blocks", headers={"Authorization": f"Bearer {alice['token']}"}
+        )
         assert bob["id"] in [x["user_id"] for x in bl.json()["data"]["list"]]
         await c.delete(
             f"/api/v1/friends/blocks/{bob['id']}",
             headers={"Authorization": f"Bearer {alice['token']}"},
         )
-        bl2 = await c.get("/api/v1/friends/blocks", headers={"Authorization": f"Bearer {alice['token']}"})
+        bl2 = await c.get(
+            "/api/v1/friends/blocks", headers={"Authorization": f"Bearer {alice['token']}"}
+        )
         assert bl2.json()["data"]["list"] == []
 
 
@@ -298,10 +300,12 @@ async def test_kick_member_and_cannot_kick_owner(server: str):
             headers={"Authorization": f"Bearer {owner['token']}"},
         )
         assert r.status_code == 200
-        members = (await cl.get(
-            f"/api/v1/rooms/{room['id']}/members",
-            headers={"Authorization": f"Bearer {owner['token']}"},
-        )).json()["data"]["list"]
+        members = (
+            await cl.get(
+                f"/api/v1/rooms/{room['id']}/members",
+                headers={"Authorization": f"Bearer {owner['token']}"},
+            )
+        ).json()["data"]["list"]
         assert c["id"] not in [m["user_id"] for m in members]
         # 群主不能移除自己（等价于退群，30006）；非群主本就无法踢人（30004）
         r2 = await cl.delete(
@@ -338,9 +342,9 @@ async def test_friend_request_pushes_new_and_accepted(server: str):
         # B 接受前 A 连 WS → A 收到 friend.request.accepted
         async with websockets.connect(_ws_url(alice["token"])) as ws_a:
             await asyncio.wait_for(ws_a.recv(), timeout=5)  # sync.done
-            inbox = await (
-                AsyncClient(base_url=server)
-            ).get("/api/v1/friends/requests", headers={"Authorization": f"Bearer {bob['token']}"})
+            inbox = await (AsyncClient(base_url=server)).get(
+                "/api/v1/friends/requests", headers={"Authorization": f"Bearer {bob['token']}"}
+            )
             req_id = inbox.json()["data"]["list"][0]["id"]
             await _accept(server, bob, req_id)
             acc_ev = json.loads(await asyncio.wait_for(ws_a.recv(), timeout=5))
@@ -380,9 +384,10 @@ async def test_recall_message_success_and_push(server: str):
     # bob 在线，监听撤回推送（先排空历史重放，再触发撤回）
     async with websockets.connect(_ws_url(bob["token"])) as ws:
         await _drain_sync(ws)
-        r = await (
-            AsyncClient(base_url=server)
-        ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {alice['token']}"})
+        r = await (AsyncClient(base_url=server)).post(
+            f"/api/v1/messages/{msg['id']}/recall",
+            headers={"Authorization": f"Bearer {alice['token']}"},
+        )
         assert r.status_code == 200
 
         ev = json.loads(await asyncio.wait_for(ws.recv(), timeout=5))
@@ -407,9 +412,9 @@ async def test_recall_not_sender_forbidden(server: str):
     bob = await _register(server)
     room = await _single_room(server, alice, bob)
     msg = await _send(server, alice, room, "别人不能撤回")
-    r = await (
-        AsyncClient(base_url=server)
-    ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {bob['token']}"})
+    r = await (AsyncClient(base_url=server)).post(
+        f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {bob['token']}"}
+    )
     assert r.status_code == 403
     assert r.json()["code"] == 40003
 
@@ -424,9 +429,10 @@ async def test_recall_timeout_expired(server: str):
         m = await MessageRepo.get_by_id(s, int(msg["id"]))
         m.created_at = datetime.now(UTC) - timedelta(minutes=3)
         await s.commit()
-    r = await (
-        AsyncClient(base_url=server)
-    ).post(f"/api/v1/messages/{msg['id']}/recall", headers={"Authorization": f"Bearer {alice['token']}"})
+    r = await (AsyncClient(base_url=server)).post(
+        f"/api/v1/messages/{msg['id']}/recall",
+        headers={"Authorization": f"Bearer {alice['token']}"},
+    )
     assert r.status_code == 422
     assert r.json()["code"] == 40002
 
@@ -462,10 +468,14 @@ async def test_read_receipt_advances_only_and_push(server: str):
     async with AsyncClient(base_url=server) as c:
         h = {"Authorization": f"Bearer {bob['token']}"}
         # bob 读到 m2 → 未读只剩 m3（1 条）
-        r1 = await c.post(f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m2["id"]}, headers=h)
+        r1 = await c.post(
+            f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m2["id"]}, headers=h
+        )
         assert r1.json()["data"]["unread_count"] == 1
         # 乱序回退：bob 报到 m1（更小）→ GREATEST 不回退，未读仍是 1
-        r2 = await c.post(f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m1["id"]}, headers=h)
+        r2 = await c.post(
+            f"/api/v1/rooms/{room}/read", json={"last_read_msg_id": m1["id"]}, headers=h
+        )
         assert r2.json()["data"]["unread_count"] == 1
 
     # bob 上报已读，A 在线应收到 message.read 推送（先排空历史重放）

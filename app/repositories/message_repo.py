@@ -83,7 +83,9 @@ class MessageRepo:
         return int((await session.execute(stmt)).scalar_one())
 
     @staticmethod
-    async def recall(session: AsyncSession, msg: Message, recalled_by: int, recalled_at: datetime) -> None:
+    async def recall(
+        session: AsyncSession, msg: Message, recalled_by: int, recalled_at: datetime
+    ) -> None:
         """撤回：type 置 RECALL(2)，extra 记撤回人与时间；status 仍 NORMAL，历史里留占位"""
         msg.type = MessageType.RECALL
         msg.extra = {"recalled_by": recalled_by, "recalled_at": recalled_at.isoformat()}

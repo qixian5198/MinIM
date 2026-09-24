@@ -6,8 +6,9 @@
 upgrade / downgrade 都已验证。
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0004_message_marks"
 down_revision = "0003_friends_blocks"

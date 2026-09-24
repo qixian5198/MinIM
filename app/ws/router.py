@@ -78,9 +78,7 @@ async def websocket_endpoint(
                     lrm = int(lrm)
                 except (TypeError, ValueError):
                     continue
-                await MessageService.report_read(
-                    user_id=user.id, room_id=rid, last_read_msg_id=lrm
-                )
+                await MessageService.report_read(user_id=user.id, room_id=rid, last_read_msg_id=lrm)
     except WebSocketDisconnect:
         pass
     except Exception:

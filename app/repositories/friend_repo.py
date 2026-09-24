@@ -10,9 +10,7 @@ class FriendRepo:
     # ---- 好友关系 ----
     @staticmethod
     async def is_friend(session: AsyncSession, a: int, b: int) -> bool:
-        stmt = select(Friendship.id).where(
-            Friendship.user_id == a, Friendship.friend_id == b
-        )
+        stmt = select(Friendship.id).where(Friendship.user_id == a, Friendship.friend_id == b)
         return (await session.execute(stmt)).scalar_one_or_none() is not None
 
     @staticmethod
@@ -67,7 +65,9 @@ class FriendRepo:
 
     @staticmethod
     async def list_received(
-        session: AsyncSession, user_id: int, status: FriendRequestStatus = FriendRequestStatus.PENDING
+        session: AsyncSession,
+        user_id: int,
+        status: FriendRequestStatus = FriendRequestStatus.PENDING,
     ) -> list[FriendRequest]:
         stmt = (
             select(FriendRequest)
@@ -78,8 +78,10 @@ class FriendRepo:
 
     @staticmethod
     async def list_sent(session: AsyncSession, user_id: int) -> list[FriendRequest]:
-        stmt = select(FriendRequest).where(FriendRequest.from_uid == user_id).order_by(
-            FriendRequest.id.desc()
+        stmt = (
+            select(FriendRequest)
+            .where(FriendRequest.from_uid == user_id)
+            .order_by(FriendRequest.id.desc())
         )
         return list((await session.execute(stmt)).scalars().all())
 

@@ -120,7 +120,9 @@ class RoomRepo:
         )
 
     @staticmethod
-    async def update_last_read(session: AsyncSession, room_id: int, user_id: int, msg_id: int) -> None:
+    async def update_last_read(
+        session: AsyncSession, room_id: int, user_id: int, msg_id: int
+    ) -> None:
         """已读位点只前进：客户端可能乱序上报，用 GREATEST 避免回退（docs/11 M5）"""
         await session.execute(
             update(RoomMember)
