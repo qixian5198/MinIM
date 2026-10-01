@@ -72,6 +72,12 @@ def create_app() -> FastAPI:
     async def health() -> dict[str, Any]:
         return {"status": "ok", "env": settings.APP_ENV}
 
+    # 最小 Web 前端（web/index.html）：挂根路径，验收"两窗口互发/翻页/断线重连"。
+    # 必须最后挂：StaticFiles("/" 是通配 mount，挂在前面会把 /ws、/health 也吞了
+    from fastapi.staticfiles import StaticFiles
+
+    app.mount("/", StaticFiles(directory="web", html=True), name="web")
+
     return app
 
 
