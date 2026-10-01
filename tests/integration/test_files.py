@@ -57,3 +57,27 @@ async def test_upload_requires_token(client: AsyncClient):
     files = {"file": ("a.png", io.BytesIO(b"xx"), "image/png")}
     r = await client.post("/api/v1/files", files=files)
     assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_download_roundtrip_with_token(client: AsyncClient, token: str, monkeypatch):
+    fake = FakeObjectStorage()
+    monkeypatch.setattr("app.core.storage._storage", fake)
+    monkeypatch.setattr("app.services.file_service.get_object_storage", lambda: fake)
+
+    files = {"file": ("pic.png", io.BytesIO(b"\x89PNG data"), "image/png")}
+    up = await client.post(
+        "/api/v1/files", files=files, headers={"Authorization": f"Bearer {token}"}
+    )
+    fid = up.json()["data"]["id"]
+    r = await client.get(f"/api/v1/files/{fid}", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.content == b"\x89PNG data"
+    assert r.headers["content-type"].startswith("image/png")
+
+
+@pytest.mark.asyncio
+async def test_download_unknown_id_404(client: AsyncClient, token: str):
+    r = await client.get("/api/v1/files/999999", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 404
+    assert r.json()["code"] == 60003

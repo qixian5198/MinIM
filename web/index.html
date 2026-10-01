@@ -94,8 +94,16 @@
       <div id="chat-title"><span id="ct-name"></span><span class="ops" id="ct-ops"></span></div>
       <div id="msgs"></div>
       <div id="input-bar">
+        <button id="btn-attach" title="发图片/文件">📎</button>
+        <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.zip" style="display:none">
         <input id="msg-input" placeholder="输入消息，Enter 发送" maxlength="4096">
         <button class="primary" id="btn-send">发送</button>
+      </div>
+      <div id="emoji-bar" style="display:flex;gap:4px;padding:4px 10px;border-top:1px solid var(--line);background:#fff">
+        <button style="border:none;font-size:18px">😀</button><button style="border:none;font-size:18px">😂</button>
+        <button style="border:none;font-size:18px">👍</button><button style="border:none;font-size:18px">❤️</button>
+        <button style="border:none;font-size:18px">🎉</button><button style="border:none;font-size:18px">🙏</button>
+        <button style="border:none;font-size:18px">😎</button><button style="border:none;font-size:18px">🥺</button>
       </div>
       <div id="status">连接中…</div>
     </div>
@@ -343,9 +351,58 @@ function msgEl(m) {
   d.dataset.id = m.id;
   byId[m.from_uid] = byId[m.from_uid] || {};
   const who = m.from_uid === String(me.id) ? "我" : uidName(m.from_uid);
-  d.innerHTML = `<div class="who">${esc(who)} · ${new Date(m.created_at).toLocaleTimeString()}</div>${esc(m.content)}`;
+  const head = `<div class="who">${esc(who)} · ${new Date(m.created_at).toLocaleTimeString()}</div>`;
+  if (m.type === 3) { // 图片：extra.url 是文件 ID；带鉴权，用 fetch+Blob 渲染（img 标签发不了 header）
+    d.innerHTML = head + `<img src="pending" data-file="${esc(m.extra.url)}" alt="图片" style="max-width:200px;border-radius:6px;display:block">`;
+    fileBlobUrl(m.extra.url).then(u => { const img = d.querySelector("img"); if (img) img.src = u; }).catch(() => {});
+  } else if (m.type === 4) { // 文件：给下载链接（点击时 JS 拦截走带鉴权的 fetch）
+    d.innerHTML = head + `<a data-file="${esc(m.extra.url)}" style="color:var(--accent)">📄 ${esc(m.content || "文件")}</a>`;
+    d.querySelector("a").onclick = async (e) => {
+      e.preventDefault();
+      const u = await fileBlobUrl(m.extra.url, true);
+      const a = document.createElement("a"); a.href = u; a.download = m.extra.filename || "file";
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+  } else {
+    d.innerHTML = head + esc(m.content);
+  }
   return d;
 }
+
+async function fileBlobUrl(fileId, revokeAfter = false) {
+  const r = await fetch(`${API}/files/${fileId}`, { headers: { "Authorization": "Bearer " + tokens.access_token } });
+  if (!r.ok) throw new Error("文件取失败 HTTP " + r.status);
+  const u = URL.createObjectURL(await r.blob());
+  if (revokeAfter) setTimeout(() => URL.revokeObjectURL(u), 60000);
+  return u;
+}
+
+// ---------- 图片 / 文件 / 表情 ----------
+$("btn-attach").onclick = () => $("file-input").click();
+$("file-input").onchange = async () => {
+  const f = $("file-input").files[0];
+  if (!f || !activeRoom) return;
+  try {
+    const form = new FormData(); form.append("file", f);
+    const r = await fetch(API + "/files", { method: "POST", body: form,
+      headers: { "Authorization": "Bearer " + tokens.access_token } });
+    const j = await r.json();
+    if (j.code !== 0) { if (Array.isArray(j.detail)) throw new Error(j.detail.map(x => `${(x.loc||[]).pop()}: ${x.msg}`).join("；")); throw new Error(j.message); }
+    const isImg = /^image\//.test(f.type);
+    const m = await api("/messages", { method: "POST", body: JSON.stringify({
+      room_id: activeRoom.id, type: isImg ? 3 : 4,
+      content: isImg ? null : f.name,
+      extra: { url: j.data.id, mime_type: f.type, size: f.size, filename: f.name },
+    })});
+    $("msgs").appendChild(msgEl(m));
+    $("msgs").scrollTop = 1e9;
+  } catch (e) { alert("发送失败：" + e.message); }
+  $("file-input").value = "";
+};
+document.querySelectorAll("#emoji-bar button").forEach(b => b.onclick = () => {
+  $("msg-input").value += b.textContent;
+  $("msg-input").focus();
+});
 
 function markReadAll() {
   if (!activeRoom) return;
