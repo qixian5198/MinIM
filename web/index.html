@@ -10,20 +10,35 @@
   body { margin:0; font:14px/1.5 -apple-system,"PingFang SC",sans-serif; background:var(--bg); height:100vh; overflow:hidden; }
   button { cursor:pointer; border:1px solid var(--line); background:#fff; border-radius:6px; padding:4px 10px; font:inherit; }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button:disabled { opacity:.4; cursor:default; }
   input, textarea { font:inherit; border:1px solid var(--line); border-radius:6px; padding:6px 8px; }
-  #app { display:none; height:100%; }
-  #auth { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
-  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:24px; width:320px; display:flex; flex-direction:column; gap:8px; }
+  h3 { font-size:12px; color:var(--muted); margin:10px 0 4px; letter-spacing:1px; }
+  #auth { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:var(--bg); z-index:10; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:24px; width:340px; display:flex; flex-direction:column; gap:8px; }
   .card h1 { font-size:18px; margin:0; }
+  .row { display:flex; gap:8px; }
+  #app { display:none; height:100%; }
   #main { display:flex; height:100%; }
-  #rooms { width:240px; border-right:1px solid var(--line); background:#fff; overflow-y:auto; display:flex; flex-direction:column; }
-  #rooms .head { padding:10px 12px; border-bottom:1px solid var(--line); font-weight:600; display:flex; justify-content:space-between; align-items:center; }
-  .room-item { padding:8px 12px; border-bottom:1px solid var(--line); cursor:pointer; display:flex; gap:8px; align-items:center; }
+  #side { width:280px; border-right:1px solid var(--line); background:#fff; overflow-y:auto; }
+  #side .sec { padding:0 12px; }
+  .friend-item { display:flex; align-items:center; gap:6px; padding:6px 4px; cursor:pointer; }
+  .friend-item:hover { background:#f0f0f0; }
+  .friend-item .info { flex:1; min-width:0; }
+  .friend-item .nm { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:500; }
+  .friend-item .sub { font-size:11px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .friend-item .ops { display:none; gap:4px; }
+  .friend-item:hover .ops { display:flex; }
+  .friend-item .ops button { padding:1px 6px; font-size:12px; }
+  .room-item { padding:8px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0; }
+  .room-item:hover { background:#f7f7f7; }
   .room-item.active { background:#eef4ff; }
-  .room-item .name { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .room-item .last { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:120px; }
-  .badge { background:#e33; color:#fff; border-radius:9px; font-size:11px; padding:0 6px; }
-  #chat { flex:1; display:none; flex-direction:column; }
+  .room-item .name { font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .room-item .last { font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag { font-size:11px; color:var(--muted); border:1px solid var(--line); border-radius:4px; padding:0 4px; margin-left:6px; }
+  .badge { background:#e33; color:#fff; border-radius:9px; font-size:11px; padding:0 6px; margin-left:6px; }
+  #chat { flex:1; display:none; flex-direction:column; min-width:0; }
+  #chat-title { padding:10px 14px; border-bottom:1px solid var(--line); background:#fff; font-weight:600; display:flex; align-items:center; gap:8px; }
+  #chat-title .ops { font-weight:400; margin-left:auto; display:flex; gap:6px; }
   #msgs { flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:6px; }
   .msg { max-width:70%; padding:6px 10px; border-radius:10px; background:#fff; border:1px solid var(--line); white-space:pre-wrap; word-break:break-word; }
   .msg.mine { align-self:flex-end; background:#d6e9ff; }
@@ -32,7 +47,9 @@
   #input-bar { display:flex; gap:8px; padding:10px; border-top:1px solid var(--line); background:#fff; }
   #input-bar input { flex:1; }
   #status { font-size:12px; color:var(--muted); padding:4px 10px; background:#fff; border-top:1px solid var(--line); }
-  .row { display:flex; gap:8px; }
+  #modal { position:fixed; inset:0; background:rgba(0,0,0,.3); display:none; align-items:center; justify-content:center; z-index:20; }
+  #modal .card { width:360px; }
+  .pick { display:flex; align-items:center; gap:6px; padding:3px 0; }
 </style>
 </head>
 <body>
@@ -41,7 +58,7 @@
   <h1>MinIM</h1>
   <div class="row">
     <input id="username" placeholder="用户名（3-20 位字母数字_）">
-    <input id="password" type="password" placeholder="密码（8-32，含字母数字）">
+    <input id="password" type="password" placeholder="密码（8-32，字母+数字）">
   </div>
   <button class="primary" id="btn-login">登录</button>
   <button id="btn-register">注册</button>
@@ -50,12 +67,31 @@
 
 <div id="app">
   <div id="main">
-    <div id="rooms">
-      <div class="head"><span>会话</span><button id="btn-new">搜索加人</button></div>
-      <div id="room-list"></div>
+    <div id="side">
+      <div class="sec">
+        <h3>搜索用户</h3>
+        <input id="search" placeholder="按用户名/昵称搜索" style="width:100%">
+        <div id="search-results"></div>
+      </div>
+      <div class="sec">
+        <h3>好友申请<span id="req-badge"></span></h3>
+        <div id="req-list"><div class="sub" style="color:var(--muted);font-size:12px">暂无申请</div></div>
+      </div>
+      <div class="sec">
+        <h3>我的好友</h3>
+        <div id="friend-list"></div>
+      </div>
+      <div class="sec">
+        <h3>群聊 <button id="btn-new-group" style="float:right;font-size:11px;padding:0 6px">+</button></h3>
+        <div id="group-list"></div>
+      </div>
+      <div class="sec">
+        <h3>全部会话</h3>
+        <div id="room-list"></div>
+      </div>
     </div>
     <div id="chat">
-      <div id="chat-title" style="padding:10px;border-bottom:1px solid var(--line)"></div>
+      <div id="chat-title"><span id="ct-name"></span><span class="ops" id="ct-ops"></span></div>
       <div id="msgs"></div>
       <div id="input-bar">
         <input id="msg-input" placeholder="输入消息，Enter 发送" maxlength="4096">
@@ -66,38 +102,53 @@
   </div>
 </div>
 
+<div id="modal"><div class="card">
+  <h1 id="modal-title" style="font-size:16px">新建群</h1>
+  <input id="g-name" placeholder="群名称（可留空）" style="width:100%">
+  <div style="margin-top:8px;font-size:12px;color:var(--muted)">选择拉入群的好友</div>
+  <div id="g-picks" style="max-height:200px;overflow-y:auto"></div>
+  <div class="row" style="margin-top:12px;justify-content:flex-end">
+    <button id="g-cancel">取消</button>
+    <button class="primary" id="g-ok">建群</button>
+  </div>
+</div></div>
+
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
-let tokens = null, me = null, rooms = [], activeRoom = null;
-let ws = null, lastSeq = 0, wsTimer = null, reconnectDelay = 1000;
+let tokens = null, me = null;
+let rooms = [], friends = [], requests = [], activeRoom = null;
+let ws = null, lastSeq = 0, wsTimer = null, reconnectDelay = 1000, searchTimer = null;
 const API = "/api/v1";
 let msgCursor = null, msgHasMore = false, loadingMsgs = false;
+const byId = {} // uid -> 用户信息（好友/搜索/房间消息里见过的）
 
 async function api(path, opts = {}) {
-  opts.headers = Object.assign({}, opts.headers);
-  if (tokens) opts.headers["Authorization"] = "Bearer " + tokens.access_token;
-  const r = await fetch(API + path, Object.assign({ method: "GET" }, opts,
-    opts.body ? { headers: Object.assign({ "Content-Type": "application/json" }, opts.headers) } : {}));
+  const o = Object.assign({ headers: {} }, opts);
+  if (tokens) o.headers["Authorization"] = "Bearer " + tokens.access_token;
+  if (o.body) o.headers["Content-Type"] = "application/json";
+  const r = await fetch(API + path, o);
   if (r.status === 401) { logout(); throw new Error("未登录"); }
   const j = await r.json().catch(() => ({}));
-  if (j.code !== 0) throw new Error(j.message || ("HTTP " + r.status));
+  if (j.code !== 0 || r.status === 422) {
+    if (Array.isArray(j.detail)) throw new Error(j.detail.map(d => `${(d.loc || []).pop()}: ${d.msg}`).join("；"));
+    throw new Error(j.message || ("HTTP " + r.status));
+  }
   return j.data;
 }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c =>
+  ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
 
 function logout() {
-  tokens = me = null; activeRoom = null; rooms = [];
+  tokens = me = activeRoom = null; rooms = friends = requests = [];
   closeWS();
   $("auth").style.display = "flex"; $("app").style.display = "none";
 }
-
 async function doAuth(register) {
   $("auth-err").textContent = "";
   try {
-    const path = register ? "/auth/register" : "/auth/login";
-    const data = await api(path, { method: "POST", body: JSON.stringify({
-      username: $("username").value.trim(),
-      password: $("password").value,
+    const data = await api(register ? "/auth/register" : "/auth/login", { method: "POST", body: JSON.stringify({
+      username: $("username").value.trim(), password: $("password").value,
       nickname: register ? $("username").value.trim() : undefined,
     })});
     tokens = data; me = data.user;
@@ -109,48 +160,162 @@ $("btn-register").onclick = () => doAuth(true);
 
 async function enter() {
   $("auth").style.display = "none"; $("app").style.display = "block";
-  rooms = (await api("/rooms")).list;
-  renderRooms();
+  await refreshAll();
   connectWS();
-  let unread = 0;
-  for (const r of rooms) unread += r.unread_count;
-  document.title = (unread ? `(${unread}) ` : "") + "MinIM · " + me.nickname;
 }
 
-function roomTitle(r) {
-  if (r.type === 2) return r.name || "群聊";
-  // 单聊显示对方昵称：room.name 是房主名或空，用 members 兜底 —— 简单起见直接用房名
-  return r.name || ("单聊 #" + r.id);
+async function refreshAll() {
+  rooms = (await api("/rooms")).list;
+  friends = (await api("/friends")).list;
+  requests = (await api("/friends/requests")).list;
+  for (const f of friends) byId[f.user_id] = { nickname: f.nickname, avatar_url: f.avatar_url };
+  renderSide();
+}
+function renderSide() {
+  // 好友申请
+  const rb = $("req-badge");
+  rb.innerHTML = requests.length ? `<span class="badge">${requests.length}</span>` : "";
+  $("req-list").innerHTML = requests.length ? requests.map(r => {
+    byId[r.from_user.id] = { nickname: r.from_user.nickname, avatar_url: r.from_user.avatar_url };
+    return `<div class="friend-item" data-req="${r.id}">
+      <div class="info"><div class="nm">${esc(r.from_user.nickname || r.from_user.id)}</div>
+      ${r.message ? `<div class="sub">${esc(r.message)}</div>` : ""}</div>
+      <span class="ops" style="display:flex;gap:4px">
+        <button data-acc="${r.id}" style="font-size:12px;padding:1px 6px">同意</button>
+        <button data-rej="${r.id}" style="font-size:12px;padding:1px 6px">拒绝</button>
+      </span></div>`;
+  }).join("") : '<div class="sub" style="color:var(--muted);font-size:12px">暂无申请</div>';
+  document.querySelectorAll("[data-acc]").forEach(b => b.onclick = () => handleReq(b.dataset.acc, "accept"));
+  document.querySelectorAll("[data-rej]").forEach(b => b.onclick = () => handleReq(b.dataset.rej, "reject"));
+
+  // 好友
+  $("friend-list").innerHTML = friends.length ? friends.map(f => friendRow(f.user_id, f.nickname, f.avatar_url, f.id))
+    : '<div class="sub" style="color:var(--muted);font-size:12px">还没有好友</div>';
+
+  // 群 / 全部会话
+  $("group-list").innerHTML = rooms.filter(r => r.type === 2).map(roomRow).join("") ||
+    '<div class="sub" style="color:var(--muted);font-size:12px">还没有群</div>';
+  $("room-list").innerHTML = rooms.map(roomRow).join("") ||
+    '<div class="sub" style="color:var(--muted);font-size:12px">还没有会话</div>';
+  bindRows();
+  updateTitleUnread();
+}
+function friendRow(uid, nick, avatar, reqId) {
+  return `<div class="friend-item" data-chat="${uid}">
+    <div class="info"><div class="nm">${esc(nick || uid)} <span class="tag">#${uid}</span></div></div>
+    <span class="ops"><button data-unf="${reqId}" style="font-size:11px;padding:1px 5px">删除</button></span>
+  </div>`;
+}
+function roomTitleOf(r) {
+  if (r.type === 2) return r.name || ("群聊#" + r.id);
+  // 单聊房 name 是 null：用最后一条消息的发送方昵称兜底
+  const other = r.last_message && r.last_message.from_uid !== String(me.id) ? uidName(r.last_message.from_uid) : "";
+  return other || ("会话#" + r.id);
+}
+function roomRow(r) {
+  const last = r.last_message ? (r.last_message.type === 2 ? "消息已撤回" : (r.last_message.content || "")) : "";
+  return `<div class="room-item ${activeRoom && activeRoom.id === r.id ? "active" : ""}" data-room="${r.id}">
+    <div class="name">${esc(roomTitleOf(r))}${r.unread_count ? `<span class="badge">${r.unread_count}</span>` : ""}</div>
+    <div class="last">${esc(last)}</div></div>`;
+}
+function uidName(uid) { return byId[uid]?.nickname || ("用户#" + uid); }
+
+async function bindRows() {
+  document.querySelectorAll("[data-chat]").forEach(el => el.onclick = () => startSingle(el.dataset.chat));
+  document.querySelectorAll("[data-unf]").forEach(el => el.onclick = async (e) => {
+    e.stopPropagation();
+    await api(`/friends/${el.dataset.unf}`, { method: "DELETE" });
+    await refreshAll();
+  });
+  document.querySelectorAll("[data-room]").forEach(el => el.onclick = () => openRoom(el.dataset.room));
 }
 
-function renderRooms() {
-  const list = $("room-list"); list.innerHTML = "";
-  for (const r of rooms) {
-    const d = document.createElement("div");
-    d.className = "room-item" + (activeRoom && activeRoom.id === r.id ? " active" : "");
-    const last = r.last_message && r.last_message.content ? r.last_message.content : "（暂无消息）";
-    d.innerHTML = `<div><div class="name">${esc(roomTitle(r))}</div><div class="last">${esc(last)}</div></div>` +
-      (r.unread_count ? `<span class="badge">${r.unread_count}</span>` : "");
-    d.onclick = () => openRoom(r.id);
-    list.appendChild(d);
-  }
+async function startSingle(uid) {
+  const data = await api("/rooms/single", { method: "POST", body: JSON.stringify({ target_uid: uid }) });
+  await refreshAll();
+  openRoom(data.id);
+}
+async function handleReq(id, action) {
+  await api(`/friends/requests/${id}`, { method: "PUT", body: JSON.stringify({ action }) });
+  await refreshAll();
+  if (action === "accept") { /* 服务端已在同事务建好单聊房，回到列表即可点进 */ }
 }
 
-function esc(s) {
-  return String(s ?? "").replace(/[&<>"']/g, c =>
-    ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-}
+// ---------- 搜索 ----------
+$("search").oninput = () => {
+  clearTimeout(searchTimer);
+  const kw = $("search").value.trim();
+  if (!kw) { $("search-results").innerHTML = ""; return; }
+  searchTimer = setTimeout(async () => {
+    try {
+      const list = (await api(`/users/search?keyword=${encodeURIComponent(kw)}`)).list;
+      $("search-results").innerHTML = list.map(u =>
+        `<div class="friend-item"><div class="info"><div class="nm">${esc(u.nickname || u.username)} <span class="tag">#${u.id}</span></div></div>
+        <span class="ops" style="display:flex;gap:4px">
+          <button data-mchat="${u.id}" style="font-size:11px;padding:1px 5px">聊天</button>
+          <button data-madd="${u.id}" style="font-size:11px;padding:1px 5px">加好友</button>
+        </span></div>`).join("") || '<div class="sub" style="color:var(--muted);font-size:12px">没搜到</div>';
+      for (const u of list) byId[u.id] = { nickname: u.nickname, avatar_url: u.avatar_url };
+      document.querySelectorAll("[data-mchat]").forEach(b => b.onclick = () => startSingle(b.dataset.mchat));
+      document.querySelectorAll("[data-madd]").forEach(b => b.onclick = async () => {
+        try { await api("/friends/requests", { method: "POST", body: JSON.stringify({ to_uid: b.dataset.madd }) });
+          alert("申请已发送"); }
+        catch (e) { alert(e.message); }
+      });
+    } catch (e) { $("search-results").innerHTML = `<div style="color:#c33;font-size:12px">${esc(e.message)}</div>`; }
+  }, 300);
+};
+
+// ---------- 建群 / 拉人 / 踢人 ----------
+$("btn-new-group").onclick = () => {
+  if (!friends.length) { alert("先加好友再建群"); return; }
+  $("g-name").value = "";
+  $("g-picks").innerHTML = friends.map(f =>
+    `<label class="pick"><input type="checkbox" value="${f.user_id}"> ${esc(f.nickname || f.user_id)}</label>`).join("");
+  $("modal").style.display = "flex";
+};
+$("g-cancel").onclick = () => $("modal").style.display = "none";
+$("g-ok").onclick = async () => {
+  const ids = [...document.querySelectorAll("#g-picks input:checked")].map(i => Number(i.value));
+  if (!ids.length) { alert("至少选一位好友"); return; }
+  const room = await api("/rooms/group", { method: "POST", body: JSON.stringify({
+    name: $("g-name").value.trim() || null, member_ids: ids })});
+  $("modal").style.display = "none";
+  await refreshAll();
+  openRoom(room.id);
+};
 
 async function openRoom(id) {
-  activeRoom = rooms.find(r => r.id === id);
+  activeRoom = rooms.find(r => r.id === id) || { id, type: 1, name: null, unread_count: 0 };
   const msgsEl = $("msgs"); msgsEl.innerHTML = "";
   $("chat").style.display = "flex";
-  $("chat-title").textContent = roomTitle(activeRoom) + "（#" + id + "）";
+  $("ct-name").textContent = `${roomTitleOf(activeRoom)}（#${id}）`;
+  renderRoomOps();
   msgCursor = null; msgHasMore = false; loadingMsgs = false;
   await loadHistory();
   markReadAll();
-  renderRooms();
+  bindRows();
 }
+function renderRoomOps() {
+  const ops = $("ct-ops");
+  if (activeRoom.type !== 2) { ops.innerHTML = ""; return; }
+  ops.innerHTML = `<button id="op-add" style="font-size:12px;padding:1px 8px">拉人</button>
+    <button id="op-leave" style="font-size:12px;padding:1px 8px">退群</button>`;
+  $("op-add").onclick = async () => {
+    if (!friends.length) { alert("没有可拉的好友"); return; }
+    const s = prompt("输入要拉入群的好友 ID（可留空跳过）");
+    if (!s) return;
+    const ids = s.split(/[\s,，]+/).filter(Boolean).map(Number);
+    try { await api(`/rooms/${activeRoom.id}/members`, { method: "POST", body: JSON.stringify({ user_ids: ids }) });
+      await refreshAll(); } catch (e) { alert(e.message); }
+  };
+  $("op-leave").onclick = async () => {
+    if (!confirm("确定退群？群主不能退群")) return;
+    try { await api(`/rooms/${activeRoom.id}/members/${me.id}`, { method: "DELETE" });
+      activeRoom = null; openRoomListRefresh(); } catch (e) { alert(e.message); }
+  };
+}
+async function openRoomListRefresh() { await refreshAll(); }
 
 async function loadHistory() {
   const q = msgCursor ? `?limit=20&cursor=${msgCursor}` : "?limit=20";
@@ -160,46 +325,38 @@ async function loadHistory() {
   for (const m of data.list) frag.appendChild(msgEl(m));
   box.insertBefore(frag, box.firstChild);
   msgCursor = data.next_cursor; msgHasMore = data.has_more;
-  if (!data.has_more) box.dataset.oldest = "1"; else box.dataset.oldest = "0";
-  // 上滑触顶翻页
   box.onscroll = () => {
-    if (box.scrollTop < 40 && msgHasMore && !loadingMsgs && box.dataset.oldest === "0") {
-      loadingMsgs = true;
-      loadHistory().then(() => { loadingMsgs = false; });
+    if (box.scrollTop < 40 && msgHasMore && !loadingMsgs) {
+      loadingMsgs = true; loadHistory().then(() => { loadingMsgs = false; });
     }
   };
 }
 
 function msgEl(m) {
   const d = document.createElement("div");
-  if (m.type === 2) { // 撤回/系统占位
+  if (m.type === 2) {
     d.className = "msg system";
-    const who = m.extra && m.extra.by ? m.extra.by : "";
-    d.textContent = "消息已撤回" + (who ? `（${who}）` : "");
+    d.textContent = "消息已撤回" + (m.extra?.by ? `（${uidName(String(m.extra.by))}）` : "");
     return d;
   }
   d.className = "msg" + (m.from_uid === String(me.id) ? " mine" : "");
   d.dataset.id = m.id;
-  const who = m.from_uid === String(me.id) ? "我" : "用户" + m.from_uid;
+  byId[m.from_uid] = byId[m.from_uid] || {};
+  const who = m.from_uid === String(me.id) ? "我" : uidName(m.from_uid);
   d.innerHTML = `<div class="who">${esc(who)} · ${new Date(m.created_at).toLocaleTimeString()}</div>${esc(m.content)}`;
   return d;
 }
 
 function markReadAll() {
+  if (!activeRoom) return;
   const box = $("msgs");
   let last = 0;
   for (const el of box.querySelectorAll(".msg[data-id]")) last = Math.max(last, Number(el.dataset.id));
-  if (last) api(`/rooms/${activeRoom.id}/read`, { method: "POST", body: JSON.stringify({ last_read_msg_id: String(last) }) })
-    .then(() => ws && ws.readyState === 1 && ws.send(JSON.stringify({ type: "message.read", data: { room_id: activeRoom.id, last_read_msg_id: last } })))
+  if (!last) return;
+  api(`/rooms/${activeRoom.id}/read`, { method: "POST", body: JSON.stringify({ last_read_msg_id: String(last) }) })
+    .then(() => ws && ws.readyState === 1 && ws.send(JSON.stringify(
+      { type: "message.read", data: { room_id: activeRoom.id, last_read_msg_id: last } })))
     .catch(() => {});
-}
-
-async function refreshRooms() {
-  rooms = (await api("/rooms")).list;
-  if (activeRoom) activeRoom = rooms.find(r => r.id === activeRoom.id) || activeRoom;
-  renderRooms();
-  let unread = 0; for (const r of rooms) unread += r.unread_count;
-  document.title = (unread ? `(${unread}) ` : "") + "MinIM · " + me.nickname;
 }
 
 $("btn-send").onclick = send;
@@ -212,16 +369,8 @@ async function send() {
   $("msgs").appendChild(msgEl(m));
   $("msgs").scrollTop = 1e9;
   markReadAll();
-  refreshRooms().catch(() => {});
+  refreshAll().catch(() => {});
 }
-
-$("btn-new").onclick = async () => {
-  const uid = prompt("输入要添加的用户 ID");
-  if (!uid) return;
-  const data = await api("/rooms/single", { method: "POST", body: JSON.stringify({ target_uid: uid }) });
-  await refreshRooms();
-  openRoom(data.id);
-};
 
 // ---------- WebSocket：断线指数退避重连，last_seq 补发（验收 1/4） ----------
 function wsUrl() {
@@ -239,27 +388,30 @@ function connectWS() {
   };
   ws.onmessage = (ev) => {
     const f = JSON.parse(ev.data);
-    if (f.type === "pong") return;
+    if (f.type === "pong" || f.type === "sync.done") return;
     if (typeof f.seq === "number") lastSeq = f.seq;
-    if (f.type === "sync.done") return;
     if (f.type === "message.new") onMessage(f.data);
     if (f.type === "message.read") markReadAll();
-    if (f.type.startsWith("room.") || f.type.startsWith("friend.")) refreshRooms().catch(() => {});
+    if (f.type.startsWith("room.") || f.type.startsWith("friend.")) refreshAll().catch(() => {});
   };
 }
 function closeWS() { if (ws) { ws.onclose = null; ws.close(); } clearTimeout(wsTimer); }
 function sendPing() { if (ws && ws.readyState === 1) ws.send(JSON.stringify({ type: "ping" })); }
-setInterval(sendPing, 30000); // 服务端 60s 心跳超时，30s 一次
+setInterval(sendPing, 30000);
 
 function onMessage(m) {
-  // 自己发的消息 send() 已渲染过，靠 id 去重
   if ($("msgs").querySelector(`[data-id="${m.id}"]`)) return;
+  byId[m.from_uid] = byId[m.from_uid] || {};
   if (activeRoom && m.room_id === activeRoom.id) {
     $("msgs").appendChild(msgEl(m));
     $("msgs").scrollTop = 1e9;
     markReadAll();
   }
-  refreshRooms().catch(() => {});
+  refreshAll().catch(() => {});
+}
+function updateTitleUnread() {
+  let n = 0; for (const r of rooms) n += r.unread_count;
+  document.title = (n ? `(${n}) ` : "") + "MinIM · " + (me?.nickname || "");
 }
 </script>
 </body>
